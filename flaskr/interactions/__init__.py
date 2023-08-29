@@ -22,11 +22,9 @@ def interactions():
     elif interaction_type == InteractionType.MESSAGE_COMPONENT:
         return DiscordInteractionHandler.handle_message_interaction(
             discord_user=content["member"]["user"],
-            interaction_data=content["data"],
-            original_message=content["message"],
+            interaction_data=content["data"]
         )
     else:
-        # Who knows
         current_app.logger.warn(f"Unknown interaction type: {interaction_type}")
         return jsonify({"type": InteractionCallbackType.PONG})
     

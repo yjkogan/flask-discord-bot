@@ -17,3 +17,9 @@ class InteractionCallbackType(IntEnum):
 class MessageComponentType(IntEnum):
     ACTION_ROW = 1
     BUTTON = 2
+
+@verify(UNIQUE, NAMED_FLAGS)
+class ApplicationCommandType(IntEnum):
+    CHAT_INPUT = 1
+    USER = 2
+    MESSAGE = 3

@@ -1,5 +1,7 @@
 from flask import current_app
 
+# TODO: Cleanup and add tests
+
 class InteractionCache:
     fake_redis = {}
 
