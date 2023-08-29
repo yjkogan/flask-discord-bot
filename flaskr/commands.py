@@ -1,5 +1,5 @@
 import click
-from . import discord
+from .discord.commands import install_global_commands
 
 from flask import (current_app)
 
@@ -28,5 +28,5 @@ def init_app(app):
 
 @click.command('create-commands')
 def create_commands_command():
-    discord.install_global_commands(appId=current_app.config['APP_ID'], commands=ALL_COMMANDS)
+    install_global_commands(appId=current_app.config['APP_ID'], commands=ALL_COMMANDS)
     click.echo('Installed commands.')

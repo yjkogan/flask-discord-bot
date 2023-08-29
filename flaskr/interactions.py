@@ -7,7 +7,7 @@ import sqlite3
 from flask import Blueprint, request, current_app, jsonify
 
 from .interaction_cache import InteractionCache
-from . import discord
+from .discord.auth import DiscordAuth
 
 from flaskr.db import get_db
 
@@ -264,4 +264,4 @@ def get_user(username):
 
 @bp.before_app_request
 def verify_bot_key():
-    discord.verify_discord_request(request=request)
+    DiscordAuth.verify_discord_request(request=request)
