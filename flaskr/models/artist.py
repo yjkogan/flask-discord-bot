@@ -77,16 +77,3 @@ class Artist:
                 (rateable.rating, rateable.name, user.id)
             )
         db.commit()
-        
-
-    def begin_rating(self, artists_for_user):
-        rating_calculator = RatingCalculator(self, artists_for_user)
-
-        return rating_calculator
-    
-    def continue_rating(self, comparison):
-        rating_calculator = RatingCalculator.find_for_item(self)
-        if rating_calculator is None:
-            return None
-        rating_calculator.add_comparison(comparison)
-        return rating_calculator

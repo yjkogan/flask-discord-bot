@@ -24,6 +24,18 @@ class RatingCalculator:
             RatingCalculator.get_cache_key(self.item_being_rated)
         )
 
+    @classmethod
+    def begin_rating(cls, item_being_rated, other_items):
+        return cls(item_being_rated, other_items)
+
+    @classmethod
+    def continue_rating(cls, item_being_rated, comparison):
+        rating_calculator = RatingCalculator.find_for_item(item_being_rated)
+        if rating_calculator is None:
+            return None
+        rating_calculator.add_comparison(comparison)
+        return rating_calculator
+
     def add_comparison(self, comparison):
         self.comparisons.append(comparison)
 

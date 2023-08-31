@@ -5,10 +5,8 @@ from flask import current_app, jsonify
 from flaskr.commands import BotCommandNames
 from ..discord import InteractionCallbackType, MessageComponentType
 from ..models.user import User
-from ..models.artist import Artist, ArtistExistsException
-from ..ratings import Comparison
-
-from flaskr.db import get_db
+from ..models.artist import Artist
+from ..ratings import Comparison, RatingCalculator
 
 MAX_COMPARISONS = 100000
 
@@ -41,7 +39,7 @@ class DiscordInteractionHandler:
         artists_for_user = user.get_artists()
 
         artist = Artist.get_or_create_artist(user=user, artist_name=artist_name)
-        rating_calculator = artist.begin_rating(artists_for_user=artists_for_user)
+        rating_calculator = RatingCalculator.begin_rating(item_being_rated=artist, other_items=artists_for_user)
         next_comparison = rating_calculator.get_next_comparison()
         if next_comparison is None:
             rating_calculator.complete()
@@ -61,25 +59,13 @@ class DiscordInteractionHandler:
         )
 
     def handle_message_interaction(discord_user, interaction_data):
-        # TODO: extract into "parse" function
-        matches = re.search(
-            "n_([a-zA-Z0-9 -]*)_c_([a-zA-Z0-9 -]*)_cidx_([0-9]*)_pc_(no|yes)",
-            interaction_data["custom_id"],
+        (artist_name, comparison) = DiscordInteractionHandler._parse_custom_id(
+            interaction_data["custom_id"]
         )
-        match_groups = matches.groups()
-        artist_name = match_groups[0]
-        compared_to_artist = match_groups[1]
-        compared_artist_index = int(match_groups[2])
-        is_preferred_to_new_artist = match_groups[3] == "yes"
+
         user = User.get_by_username(discord_user["username"])
         artist = Artist.get_by_name_for_user(user=user, artist_name=artist_name)
-        rating_calculator = artist.continue_rating(
-            Comparison(
-                name=compared_to_artist,
-                index=compared_artist_index,
-                is_preferred=is_preferred_to_new_artist,
-            )
-        )
+        rating_calculator = RatingCalculator.continue_rating(item_being_rated=artist, comparison=comparison)
         if rating_calculator is None:
             return jsonify(
                 {
@@ -91,25 +77,46 @@ class DiscordInteractionHandler:
             )
 
         next_comparison = rating_calculator.get_next_comparison()
-        is_enough_comparisons = len(rating_calculator.comparisons) >= MAX_COMPARISONS
-        if next_comparison is None or is_enough_comparisons:
-            new_rateables = rating_calculator.get_overall_ratings()
-            Artist.update_all_with_new_ratings(user=user, new_rateables=new_rateables)
-            rating_calculator.complete()
-            ratings_message = get_ratings_message(new_rateables)
-            return jsonify(
-                {
-                    "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    "data": {
-                        "content": f"Got it! Your new ratings are\n {ratings_message}"
-                    },
-                }
+        is_user_tired_of_comparisons = (
+            len(rating_calculator.comparisons) < MAX_COMPARISONS
+        )
+        if next_comparison and is_user_tired_of_comparisons:
+            return send_comparison(
+                rating_calculator.item_being_rated.name,
+                next_comparison.name,
+                next_comparison.index,
             )
 
-        return send_comparison(
-            rating_calculator.item_being_rated.name,
-            next_comparison.name,
-            next_comparison.index,
+        new_rateables = rating_calculator.get_overall_ratings()
+        Artist.update_all_with_new_ratings(user=user, new_rateables=new_rateables)
+        rating_calculator.complete()
+        ratings_message = get_ratings_message(new_rateables)
+        return jsonify(
+            {
+                "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                "data": {
+                    "content": f"Got it! Your new ratings are\n {ratings_message}"
+                },
+            }
+        )
+
+    def _parse_custom_id(custom_id):
+        matches = re.search(
+            "n_([a-zA-Z0-9 -]*)_c_([a-zA-Z0-9 -]*)_cidx_([0-9]*)_pc_(no|yes)",
+            custom_id,
+        )
+        match_groups = matches.groups()
+        artist_name = match_groups[0]
+        compared_to_artist = match_groups[1]
+        compared_artist_index = int(match_groups[2])
+        is_preferred = match_groups[3] == "yes"
+        return (
+            artist_name,
+            Comparison(
+                name=compared_to_artist,
+                index=compared_artist_index,
+                is_preferred=is_preferred,
+            ),
         )
 
 
