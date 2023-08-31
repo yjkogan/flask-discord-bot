@@ -10,14 +10,15 @@ class ArtistExistsException(Exception):
 
 
 class Artist:
-    def __init__(self, name, rating, user_id):
+    def __init__(self, id, name, rating, user_id):
+        self.id = id
         self.name = name
         self.rating = rating
         self.user_id = user_id
 
     @classmethod
     def create_from_db_row(cls, row):
-        return cls(name=row["name"], rating=row["rating"], user_id=row["user_id"])
+        return cls(id=row["id"], name=row["name"], rating=row["rating"], user_id=row["user_id"])
 
     @classmethod
     def get_or_create_artist(cls, user, artist_name):
@@ -39,15 +40,15 @@ class Artist:
         return [cls.create_from_db_row(artist) for artist in artists]
 
     @classmethod
-    def create_artist(cls, user, artist_name):
+    def create_artist(cls, user, artist_name, rating=None):
         db = get_db()
         try:
             db.execute(
-                "INSERT INTO artist (user_id, name) VALUES (?, ?)",
-                (user.id, artist_name),
+                "INSERT INTO artist (user_id, name, rating) VALUES (?, ?, ?)",
+                (user.id, artist_name, rating),
             )
             db.commit()
-            return cls(name=artist_name, rating=None, user_id=user.id)
+            return cls.get_by_name_for_user(user, artist_name)
 
         except sqlite3.IntegrityError as e:
             raise ArtistExistsException(e)

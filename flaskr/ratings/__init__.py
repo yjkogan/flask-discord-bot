@@ -1,3 +1,6 @@
+
+from collections import namedtuple
+
 from flask import current_app
 
 from ..interaction_cache import InteractionCache
@@ -96,14 +99,5 @@ class RatingCalculator:
         ]
 
 
-class Rateable:
-    def __init__(self, name, rating):
-        self.name = name
-        self.rating = rating
-
-
-class Comparison:
-    def __init__(self, name, index, is_preferred):
-        self.name = name
-        self.index = index
-        self.is_preferred = is_preferred
+Rateable = namedtuple("Rateable", ["name", "rating"])
+Comparison = namedtuple("Comparison", ["name", "index", "is_preferred"])
