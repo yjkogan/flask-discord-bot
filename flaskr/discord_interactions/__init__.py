@@ -1,14 +1,14 @@
 from flask import Blueprint, request, current_app, jsonify
 
-from ..interaction_cache import InteractionCache
 from ..discord.auth import DiscordAuth
-from ..discord import (InteractionType, InteractionCallbackType)
+from ..discord import InteractionType, InteractionCallbackType
 from .handler import DiscordInteractionHandler
 
 bp = Blueprint("interactions", __name__, url_prefix="/interactions")
 
+
 @bp.route("/", methods=("GET", "POST"))
-def interactions():
+def discord_interactions():
     content = request.json
     interaction_type = int(content["type"])
     current_app.logger.info("Starting interaction")
@@ -21,13 +21,13 @@ def interactions():
         )
     elif interaction_type == InteractionType.MESSAGE_COMPONENT:
         return DiscordInteractionHandler.handle_message_interaction(
-            discord_user=content["member"]["user"],
-            interaction_data=content["data"]
+            discord_user=content["member"]["user"], interaction_data=content["data"]
         )
     else:
         current_app.logger.warn(f"Unknown interaction type: {interaction_type}")
         return jsonify({"type": InteractionCallbackType.PONG})
-    
+
+
 @bp.before_app_request
 def verify_bot_key():
     DiscordAuth.verify_discord_request(request=request)

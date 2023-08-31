@@ -1,44 +1,55 @@
 from flaskr.db import get_db
+from .artist import Artist
 
 class User:
-  def get_or_create_for_discord_user(discord_user):
-      username = discord_user["username"]
-      user = User.get_by_username(username)
+    def __init__(self, user_id, username, discord_id):
+        self.id = user_id
+        self.username = username
+        self.discord_id = discord_id
+        self._artists = None
 
-      if user is None:
-          db = get_db()
-          db.execute(
-              "INSERT INTO user (username, discord_id)" " VALUES (?, ?)",
-              (username, discord_user["id"]),
-          )
-          db.commit()
+    @classmethod
+    def get_or_create_for_discord_user(cls, discord_user):
+        username = discord_user["username"]
+        user = cls.get_by_username(username)
 
-      return User.get_by_username(username)
+        if user is None:
+            db = get_db()
+            db.execute(
+                "INSERT INTO user (username, discord_id)" " VALUES (?, ?)",
+                (username, discord_user["id"]),
+            )
+            db.commit()
 
+        return cls.get_by_username(username)
 
-  def get_by_username(username):
-      db = get_db()
-      user = db.execute(
-          "SELECT u.id, u.username, u.discord_id FROM user u WHERE u.username = ?", (username,)
-      ).fetchone()
+    @classmethod
+    def get_by_id(cls, user_id):
+        db = get_db()
+        user = db.execute(
+            "SELECT u.id, u.username, u.discord_id FROM user u WHERE u.id = ?",
+            (user_id,),
+        ).fetchone()
 
-      return User(user_id=user['id'], username=user['username'], discord_id=user['discord_id'])
-        
-  def __init__(self, user_id, username, discord_id):
-      self.id = user_id
-      self.username = username
-      self.discord_id = discord_id
-      self._artists = None
+        return cls(
+            user_id=user["id"], username=user["username"], discord_id=user["discord_id"]
+        )
+    @classmethod
+    def get_by_username(cls, username):
+        db = get_db()
+        user = db.execute(
+            "SELECT u.id, u.username, u.discord_id FROM user u WHERE u.username = ?",
+            (username,),
+        ).fetchone()
+        if user is None:
+            return None
 
-  def get_artists(self):
-      if self._artists is not None:
-          return self._artists
-      self._artists = (
-          get_db()
-          .execute(
-              "SELECT * FROM artist WHERE user_id = ?" " ORDER BY rating ASC",
-              (self.id,),
-          )
-          .fetchall()
-      )
-      return self._artists
+        return cls(
+            user_id=user["id"], username=user["username"], discord_id=user["discord_id"]
+        )
+
+    def get_artists(self):
+        if self._artists is not None:
+            return self._artists
+        self._artists = Artist.get_artists_for_user(self)
+        return self._artists
