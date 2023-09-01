@@ -28,6 +28,16 @@ def test_get_or_create_artist(app):
         same_artist_hopefully = Artist.get_or_create_artist(user, artist_name)
         assert same_artist_hopefully.id == artist.id
 
+def test_get_by_id_for_user(app):
+    with app.app_context():
+        username = "test"
+        user = User.create_user(username)
+        artist_name = "test_artist"
+        artist = Artist.create_artist(user, artist_name)
+        assert artist.name == artist_name
+        same_artist_hopefully = Artist.get_by_id_for_user(user, artist.id)
+        assert same_artist_hopefully.id == artist.id
+
 def test_get_by_name_for_user(app):
     with app.app_context():
         username = "test"
@@ -63,21 +73,18 @@ def test_update_all_with_new_ratings(app):
         username = "test"
         user = User.create_user(username)
 
-        a1 = "test_artist"
-        a2 = "other_artist"
-        a3 = "third_artist"
-        Artist.create_artist(user, a1, 100.0)
-        Artist.create_artist(user, a2, 99.0)
-        Artist.create_artist(user, a3, 10.0)
+        a1 = Artist.create_artist(user, "test_artist", 100.0)
+        a2 = Artist.create_artist(user, "other_artist", 99.0)
+        a3 = Artist.create_artist(user, "third_artist", 10.0)
         artists = Artist.get_artists_for_user(user)
         assert len(artists) == 3
 
         new_rateables = [
-            Rateable(name=a1, rating=15.0),
-            Rateable(name=a2, rating=30.0),
-            Rateable(name=a3, rating=70.0),
+            Rateable(id=a1.id, name=a1.name, rating=15.0),
+            Rateable(id=a2.id, name=a2.name, rating=30.0),
+            Rateable(id=a3.id, name=a3.name, rating=70.0),
         ]
         Artist.update_all_with_new_ratings(user, new_rateables=new_rateables)
-        assert Artist.get_by_name_for_user(user, a1).rating == 15.0
-        assert Artist.get_by_name_for_user(user, a2).rating == 30.0
-        assert Artist.get_by_name_for_user(user, a3).rating == 70.0
+        assert Artist.get_by_name_for_user(user, a1.name).rating == 15.0
+        assert Artist.get_by_name_for_user(user, a2.name).rating == 30.0
+        assert Artist.get_by_name_for_user(user, a3.name).rating == 70.0

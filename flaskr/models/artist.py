@@ -16,6 +16,12 @@ class Artist:
         self.rating = rating
         self.user_id = user_id
 
+    def __repr__(self):
+        return f"Artist({self.id} {self.name} {self.rating} {self.user_id})"
+    
+    def __str__(self):
+        return f'{self.name} ({self.rating})'
+
     @classmethod
     def create_from_db_row(cls, row):
         return cls(id=row["id"], name=row["name"], rating=row["rating"], user_id=row["user_id"])
@@ -54,11 +60,25 @@ class Artist:
             raise ArtistExistsException(e)
 
     @classmethod
+    def get_by_id_for_user(cls, user, artist_id):
+        artist = (
+            get_db()
+            .execute(
+                "SELECT * FROM artist WHERE user_id = ? AND id = ?",
+                (user.id, artist_id),
+            )
+            .fetchone()
+        )
+        if artist is None:
+            return None
+        return cls.create_from_db_row(artist)
+
+    @classmethod
     def get_by_name_for_user(cls, user, artist_name):
         artist = (
             get_db()
             .execute(
-                "SELECT * FROM artist WHERE user_id = ? AND name = ?",
+                "SELECT * FROM artist WHERE user_id = ? AND name = ? COLLATE NOCASE",
                 (user.id, artist_name),
             )
             .fetchone()

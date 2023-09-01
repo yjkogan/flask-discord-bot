@@ -8,8 +8,6 @@ from ..models.user import User
 from ..models.artist import Artist
 from ..ratings import Comparison, RatingCalculator
 
-MAX_COMPARISONS = 100000
-
 
 class DiscordInteractionHandler:
     def handle_application_command(discord_user, interaction_data):
@@ -34,12 +32,15 @@ class DiscordInteractionHandler:
         )
 
     def _handle_rate_artist(discord_user, interaction_data):
-        artist_name = interaction_data["options"][0]["value"]
+        artist_name = interaction_data["options"][0]["value"].strip()
         user = User.get_or_create_for_discord_user(discord_user)
-        artists_for_user = user.get_artists()
 
+        artists_for_user = user.get_artists()
         artist = Artist.get_or_create_artist(user=user, artist_name=artist_name)
-        rating_calculator = RatingCalculator.begin_rating(item_being_rated=artist, other_items=artists_for_user)
+        other_items = [a for a in artists_for_user if a.id != artist.id]
+        rating_calculator = RatingCalculator.begin_rating(
+            item_being_rated=artist, other_items=other_items
+        )
         next_comparison = rating_calculator.get_next_comparison()
         if next_comparison is None:
             rating_calculator.complete()
@@ -53,37 +54,36 @@ class DiscordInteractionHandler:
             )
 
         return send_comparison(
-            rating_calculator.item_being_rated.name,
-            next_comparison.name,
+            rating_calculator.item_being_rated,
+            next_comparison,
             next_comparison.index,
         )
 
     def handle_message_interaction(discord_user, interaction_data):
-        (artist_name, comparison) = DiscordInteractionHandler._parse_custom_id(
+        (artist_id, comparison) = DiscordInteractionHandler._parse_custom_id(
             interaction_data["custom_id"]
         )
 
         user = User.get_by_username(discord_user["username"])
-        artist = Artist.get_by_name_for_user(user=user, artist_name=artist_name)
-        rating_calculator = RatingCalculator.continue_rating(item_being_rated=artist, comparison=comparison)
+        artist = Artist.get_by_id_for_user(user=user, artist_id=artist_id)
+        rating_calculator = RatingCalculator.continue_rating(
+            item_being_rated=artist, comparison=comparison
+        )
         if rating_calculator is None:
             return jsonify(
                 {
                     "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
                     "data": {
-                        "content": f"Cannot find an ongoing attempt to rate {artist_name} form {discord_user}"
+                        "content": f"Cannot find an ongoing attempt to rate {artist.name} form {discord_user}"
                     },
                 }
             )
 
         next_comparison = rating_calculator.get_next_comparison()
-        is_user_tired_of_comparisons = (
-            len(rating_calculator.comparisons) < MAX_COMPARISONS
-        )
-        if next_comparison and is_user_tired_of_comparisons:
+        if next_comparison:
             return send_comparison(
-                rating_calculator.item_being_rated.name,
-                next_comparison.name,
+                rating_calculator.item_being_rated,
+                next_comparison,
                 next_comparison.index,
             )
 
@@ -95,25 +95,26 @@ class DiscordInteractionHandler:
             {
                 "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
                 "data": {
-                    "content": f"Got it! Your new ratings are\n {ratings_message}"
+                    "content": f"Got it! Your new ratings are:\n\n{ratings_message}"
                 },
             }
         )
 
     def _parse_custom_id(custom_id):
         matches = re.search(
-            "n_([a-zA-Z0-9 -]*)_c_([a-zA-Z0-9 -]*)_cidx_([0-9]*)_pc_(no|yes)",
+            "a_([0-9]*)_c_([0-9]*)_cidx_([0-9]*)_pc_(no|yes)",
             custom_id,
         )
         match_groups = matches.groups()
-        artist_name = match_groups[0]
-        compared_to_artist = match_groups[1]
+        artist_id = match_groups[0]
+        compared_to_artist_id = match_groups[1]
         compared_artist_index = int(match_groups[2])
         is_preferred = match_groups[3] == "yes"
         return (
-            artist_name,
+            artist_id,
             Comparison(
-                name=compared_to_artist,
+                id=compared_to_artist_id,
+                name=None, # Irrelevant in this case because we don't need to read the ID, but this feels bad / wrong
                 index=compared_artist_index,
                 is_preferred=is_preferred,
             ),
@@ -129,7 +130,7 @@ def get_ratings_message(rateables):
 
 
 # Could maybe become a function on a Rating
-def send_comparison(artist_name, artist_to_compare, artist_to_compare_idx):
+def send_comparison(artist, artist_to_compare, artist_to_compare_idx):
     return jsonify(
         {
             "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -141,15 +142,15 @@ def send_comparison(artist_name, artist_to_compare, artist_to_compare_idx):
                         "components": [
                             {
                                 "type": MessageComponentType.BUTTON,
-                                "label": f"{artist_name}",
+                                "label": f"{artist.name}",
                                 "style": 1,
-                                "custom_id": f"n_{artist_name}_c_{artist_to_compare}_cidx_{artist_to_compare_idx}_pc_no",
+                                "custom_id": f"a_{artist.id}_c_{artist_to_compare.id}_cidx_{artist_to_compare_idx}_pc_no",
                             },
                             {
                                 "type": MessageComponentType.BUTTON,
-                                "label": f"{artist_to_compare}",
+                                "label": f"{artist_to_compare.name}",
                                 "style": 1,
-                                "custom_id": f"n_{artist_name}_c_{artist_to_compare}_cidx_{artist_to_compare_idx}_pc_yes",
+                                "custom_id": f"a_{artist.id}_c_{artist_to_compare.id}_cidx_{artist_to_compare_idx}_pc_yes",
                             },
                         ],
                     }
