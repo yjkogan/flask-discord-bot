@@ -1,4 +1,3 @@
-
 from collections import namedtuple
 
 from flask import current_app
@@ -6,21 +5,24 @@ from flask import current_app
 from ..interaction_cache import InteractionCache
 
 
+Rateable = namedtuple("Rateable", ["name", "rating"])
+Comparison = namedtuple("Comparison", ["name", "index", "is_preferred"])
+
+
 class RatingCalculator:
     def __init__(self, item_being_rated, other_items):
         self.item_being_rated = item_being_rated
         self.other_items = other_items
         self.comparisons = []
-        InteractionCache.store_rating_calculator(
-            cache_key=RatingCalculator.get_cache_key(item_being_rated),
-            rating_calculator=self,
-        )
+
 
     def get_cache_key(item):
         return f"{item.user_id}:{item.name}"
 
     def find_for_item(item):
-        return InteractionCache.get_rating_calculator(RatingCalculator.get_cache_key(item))
+        return InteractionCache.get_rating_calculator(
+            RatingCalculator.get_cache_key(item)
+        )
 
     def complete(self):
         InteractionCache.remove_rating_calculator(
@@ -29,7 +31,12 @@ class RatingCalculator:
 
     @classmethod
     def begin_rating(cls, item_being_rated, other_items):
-        return cls(item_being_rated, other_items)
+        rating_calulator = cls(item_being_rated, other_items)
+        InteractionCache.store_rating_calculator(
+            cache_key=RatingCalculator.get_cache_key(item_being_rated),
+            rating_calculator=rating_calulator,
+        )
+        return rating_calulator
 
     @classmethod
     def continue_rating(cls, item_being_rated, comparison):
@@ -55,20 +62,17 @@ class RatingCalculator:
         )
         for comparison in self.comparisons:
             if comparison.is_preferred:
-                highest_possible_idx = idx_for_comparison
+                highest_possible_idx = idx_for_comparison - 1
             else:
-                lowest_possible_idx = idx_for_comparison
-            if highest_possible_idx == lowest_possible_idx:
+                lowest_possible_idx = idx_for_comparison + 1
+            
+            if highest_possible_idx < lowest_possible_idx:
                 return None
-            new_idx_for_comparison = (
+            idx_for_comparison = (
                 int((highest_possible_idx - lowest_possible_idx) / 2)
                 + lowest_possible_idx
             )
-            idx_for_comparison = (
-                new_idx_for_comparison
-                if new_idx_for_comparison != idx_for_comparison
-                else new_idx_for_comparison + 1
-            )
+
             current_app.logger.info(
                 f"is_preferred: {comparison.is_preferred}, lowest: {lowest_possible_idx}, highest: {highest_possible_idx}, comparison: {idx_for_comparison}"
             )
@@ -97,7 +101,3 @@ class RatingCalculator:
             Rateable(name=r.name, rating=round((idx / denominator) * 100, 2))
             for (idx, r) in enumerate(rateables)
         ]
-
-
-Rateable = namedtuple("Rateable", ["name", "rating"])
-Comparison = namedtuple("Comparison", ["name", "index", "is_preferred"])
