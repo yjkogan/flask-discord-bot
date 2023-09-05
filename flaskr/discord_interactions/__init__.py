@@ -16,13 +16,9 @@ def discord_interactions():
     if interaction_type == InteractionType.PING:
         return jsonify({"type": InteractionCallbackType.PONG})
     elif interaction_type == InteractionType.APPLICATION_COMMAND:
-        return DiscordInteractionHandler.handle_application_command(
-            discord_user=content["member"]["user"], interaction_data=content["data"]
-        )
+        return DiscordInteractionHandler.handle_application_command(json_data=content)
     elif interaction_type == InteractionType.MESSAGE_COMPONENT:
-        return DiscordInteractionHandler.handle_message_interaction(
-            discord_user=content["member"]["user"], interaction_data=content["data"]
-        )
+        return DiscordInteractionHandler.handle_message_interaction(json_data=content)
     else:
         current_app.logger.warn(f"Unknown interaction type: {interaction_type}")
         return jsonify({"type": InteractionCallbackType.PONG})

@@ -1,16 +1,22 @@
 import re
+from collections import namedtuple
 
 from flask import current_app, jsonify
 
 from flaskr.commands import BotCommandNames
 from ..discord import InteractionCallbackType, MessageComponentType
+from ..discord.request import discord_request
 from ..models.user import User
 from ..models.artist import Artist
 from ..ratings import Comparison, RatingCalculator
 
+Interaction = namedtuple("Interaction", ["id", "token"])
+
 
 class DiscordInteractionHandler:
-    def handle_application_command(discord_user, interaction_data):
+    def handle_application_command(json_data):
+        discord_user = json_data["member"]["user"]
+        interaction_data = json_data["data"]
         command_name = interaction_data["name"]
         if command_name == BotCommandNames.echo.name:
             return DiscordInteractionHandler._handle_echo(interaction_data)
@@ -39,7 +45,8 @@ class DiscordInteractionHandler:
         artist = Artist.get_or_create_artist(user=user, artist_name=artist_name)
         other_items = [a for a in artists_for_user if a.id != artist.id]
         rating_calculator = RatingCalculator.begin_rating(
-            item_being_rated=artist, other_items=other_items
+            item_being_rated=artist,
+            other_items=other_items,
         )
         next_comparison = rating_calculator.get_next_comparison()
         if next_comparison is None:
@@ -59,7 +66,9 @@ class DiscordInteractionHandler:
             next_comparison.index,
         )
 
-    def handle_message_interaction(discord_user, interaction_data):
+    def handle_message_interaction(json_data):
+        discord_user = json_data["member"]["user"]
+        interaction_data = json_data["data"]
         (artist_id, comparison) = DiscordInteractionHandler._parse_custom_id(
             interaction_data["custom_id"]
         )
@@ -67,7 +76,8 @@ class DiscordInteractionHandler:
         user = User.get_by_username(discord_user["username"])
         artist = Artist.get_by_id_for_user(user=user, artist_id=artist_id)
         rating_calculator = RatingCalculator.continue_rating(
-            item_being_rated=artist, comparison=comparison
+            item_being_rated=artist,
+            comparison=comparison,
         )
         if rating_calculator is None:
             return jsonify(
@@ -114,7 +124,7 @@ class DiscordInteractionHandler:
             artist_id,
             Comparison(
                 id=compared_to_artist_id,
-                name=None, # Irrelevant in this case because we don't need to read the ID, but this feels bad / wrong
+                name=None,  # Irrelevant in this case because we don't need to read the ID, but this feels bad / wrong
                 index=compared_artist_index,
                 is_preferred=is_preferred,
             ),
@@ -127,6 +137,42 @@ def get_ratings_message(rateables):
         lines.append(f"{r.name}: {r.rating}")
     lines.reverse()
     return "\n".join(lines)
+
+
+# def send_comparison(
+#     artist, artist_to_compare, artist_to_compare_idx, interaction
+# ):
+#     discord_request(
+#         f"/interactions/{interaction.id}/{interaction.token}/callback",
+#         {
+#             "method": "POST",
+#             "data": {
+#                 "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+#                 "data": {
+#                     "content": f"Which of these artists do you prefer?",
+#                     "components": [
+#                         {
+#                             "type": MessageComponentType.ACTION_ROW,
+#                             "components": [
+#                                 {
+#                                     "type": MessageComponentType.BUTTON,
+#                                     "label": f"{artist.name}",
+#                                     "style": 1,
+#                                     "custom_id": f"a_{artist.id}_c_{artist_to_compare.id}_cidx_{artist_to_compare_idx}_pc_no",
+#                                 },
+#                                 {
+#                                     "type": MessageComponentType.BUTTON,
+#                                     "label": f"{artist_to_compare.name}",
+#                                     "style": 1,
+#                                     "custom_id": f"a_{artist.id}_c_{artist_to_compare.id}_cidx_{artist_to_compare_idx}_pc_yes",
+#                                 },
+#                             ],
+#                         }
+#                     ],
+#                 },
+#             },
+#         },
+#     )
 
 
 # Could maybe become a function on a Rating
