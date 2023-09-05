@@ -1,4 +1,4 @@
-from enum import Enum, verify, UNIQUE
+from enum import Enum
 import click
 from .discord.commands import (
     ApplicationCommandType,
@@ -9,7 +9,6 @@ from .discord.commands import (
 from flask import current_app
 
 
-@verify(UNIQUE)
 class BotCommandNames(str, Enum):
     echo = "echo"
     rate_artist = "rate_artist"
