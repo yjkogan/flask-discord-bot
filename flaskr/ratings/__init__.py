@@ -1,28 +1,42 @@
 from typing import Optional, Self
-from collections import namedtuple
 
 from flask import current_app
 
 from ..interaction_cache import InteractionCache
+from ..models.rating import Rating
 
 MAX_COMPARISONS = 100000
 
-Rateable = namedtuple("Rateable", ["id", "user_id", "name", "rating"])
-Comparison = namedtuple("Comparison", ["id", "name", "index", "is_preferred"])
+# TODO: Make this an abstract base class
+class _Comparison:
+    def __init__(self, id: int, index: int):
+        self.id = id
+        self.index = index
 
+class ComparisonToSend(_Comparison):
+    # Same constructor as the parent, but can also take a name that we can then send to the user
+    def __init__(self, id: int, index: int, name: str):
+        super().__init__(id, index)
+        self.name = name
+
+class CompletedComparison(_Comparison):
+    # Same constructor as Comparison, but can also take is_preferred
+    def __init__(self, id: int, index: int, is_preferred: bool):
+        super().__init__(id, index)
+        self.is_preferred = is_preferred
 
 class RatingCalculator:
-    def __init__(self, item_being_rated: Rateable, other_items: list[Rateable]):
+    def __init__(self, item_being_rated: Rating, other_items: list[Rating]):
         self.item_being_rated = item_being_rated
         self.other_items = other_items
-        self.comparisons: list[Comparison] = []
+        self.comparisons: list[CompletedComparison] = []
 
     @staticmethod
-    def get_cache_key(item: Rateable) -> str:
-        return f"{item.user_id}:{item.name}"
+    def get_cache_key(item: Rating) -> str:
+        return f"{item.user_id}:{item.id}"
 
     @staticmethod
-    def find_for_item(item: Rateable):
+    def find_for_item(item: Rating):
         return InteractionCache.get_rating_calculator(
             RatingCalculator.get_cache_key(item)
         )
@@ -33,7 +47,7 @@ class RatingCalculator:
         )
 
     @classmethod
-    def begin_rating(cls, item_being_rated: Rateable, other_items: list[Rateable]) -> Self:
+    def begin_rating(cls, item_being_rated: Rating, other_items: list[Rating]) -> Self:
         rating_calulator = cls(item_being_rated, other_items)
         InteractionCache.store_rating_calculator(
             cache_key=RatingCalculator.get_cache_key(item_being_rated),
@@ -42,17 +56,17 @@ class RatingCalculator:
         return rating_calulator
 
     @classmethod
-    def continue_rating(cls, item_being_rated: Rateable, comparison: Comparison) -> Optional[Self]:
+    def continue_rating(cls, item_being_rated: Rating, comparison: CompletedComparison) -> Optional[Self]:
         rating_calculator = RatingCalculator.find_for_item(item_being_rated)
         if rating_calculator is None:
             return None
         rating_calculator.add_comparison(comparison)
         return rating_calculator
 
-    def add_comparison(self: Self, comparison: Comparison) -> None:
+    def add_comparison(self: Self, comparison: CompletedComparison) -> None:
         self.comparisons.append(comparison)
 
-    def get_next_comparison(self: Self) -> Optional[Comparison]:
+    def get_next_comparison(self: Self) -> Optional[ComparisonToSend]:
         if not self.other_items:
             return None
 
@@ -83,31 +97,30 @@ class RatingCalculator:
                 f"is_preferred: {comparison.is_preferred}, lowest: {lowest_possible_idx}, highest: {highest_possible_idx}, comparison: {idx_for_comparison}"
             )
 
-        current_app.logger.info(f"rateable: {self.other_items[idx_for_comparison]}")
+        current_app.logger.info(f"rating: {self.other_items[idx_for_comparison]}")
         next_item = self.other_items[idx_for_comparison]
-        return Comparison(
+        return ComparisonToSend(
             id=next_item.id,
             name=next_item.name,
             index=idx_for_comparison,
-            is_preferred=None,
         )
 
-    def get_overall_ratings(self: Self) -> list[Rateable]:
+    def get_overall_ratings(self: Self) -> list[Rating]:
         # Make a copy of the list
-        rateables = [Rateable(id=r.id, user_id=r.user_id, name=r.name, rating=r.rating) for r in self.other_items]
+        ratings = self.other_items[:]
 
         # Insert the new item in the appropriate spot in the list
         last_comparison = self.comparisons[-1]
-        index_for_artist = (
+        index_for_rating = (
             last_comparison.index
             if last_comparison.is_preferred
             else last_comparison.index + 1
         )
-        rateables.insert(index_for_artist, self.item_being_rated)
+        ratings.insert(index_for_rating, self.item_being_rated)
 
         # Recalculate the ratings
-        denominator = len(rateables) - 1
+        denominator = len(ratings) - 1
         return [
-            Rateable(id=r.id, user_id=r.user_id, name=r.name, rating=round((idx / denominator) * 100, 2))
-            for (idx, r) in enumerate(rateables)
+            r.update_value_property(round((idx / denominator) * 100, 2))
+            for (idx, r) in enumerate(ratings)
         ]

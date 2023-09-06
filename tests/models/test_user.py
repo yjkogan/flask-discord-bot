@@ -1,7 +1,5 @@
 import random
-from flaskr.db import get_db
 from flaskr.models.user import User
-from flaskr.models.artist import Artist
 
 def test_create_user(app):
     with app.app_context():

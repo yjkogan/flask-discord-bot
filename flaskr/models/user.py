@@ -2,7 +2,7 @@ from typing import Optional
 from flask import current_app
 
 from flaskr.db import get_db
-from .artist import Artist
+from .rating import Rating
 
 class User:
     def __init__(self, user_id: int, username: str):
@@ -59,5 +59,5 @@ class User:
         db.commit()
         return cls.get_by_username(username)
 
-    def get_artists(self) -> list[Artist]:
-        return Artist.get_artists_for_user(self)
+    def get_ratings(self, rating_type: str) -> list[Rating]:
+        return Rating.get_ratings_for_user(self, rating_type)

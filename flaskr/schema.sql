@@ -1,17 +1,18 @@
 DROP TABLE IF EXISTS user;
-DROP TABLE IF EXISTS artist;
+DROP TABLE IF EXISTS rating;
 
 CREATE TABLE user (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE artist (
+CREATE TABLE rating (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  type TEXT NOT NULL,
   name TEXT NOT NULL,
-  rating REAL,
+  value REAL,
   FOREIGN KEY (user_id) REFERENCES user (id),
-  UNIQUE(user_id, name)
+  UNIQUE(user_id, type, name)
 );
