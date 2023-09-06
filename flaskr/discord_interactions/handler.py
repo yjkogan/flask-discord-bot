@@ -1,5 +1,6 @@
 import re
 from collections import namedtuple
+from typing import cast
 
 from flask import current_app, jsonify
 
@@ -8,19 +9,21 @@ from ..discord import InteractionCallbackType, MessageComponentType
 from ..discord.request import discord_request
 from ..models.user import User
 from ..models.artist import Artist
-from ..ratings import Comparison, RatingCalculator
+from ..ratings import Comparison, RatingCalculator, Rateable
 
 Interaction = namedtuple("Interaction", ["id", "token"])
 
 
 class DiscordInteractionHandler:
-    def handle_application_command(json_data):
-        discord_user = json_data["member"]["user"]
-        interaction_data = json_data["data"]
-        command_name = interaction_data["name"]
+
+    @staticmethod
+    def handle_application_command(json_data: dict):
+        discord_user: dict = json_data["member"]["user"]
+        interaction_data: dict = json_data["data"]
+        command_name: str = interaction_data["name"]
         if command_name == BotCommandNames.echo.name:
             return DiscordInteractionHandler._handle_echo(interaction_data)
-        elif command_name == BotCommandNames.rate_artist.name:
+        elif command_name == BotCommandNames.rate.name:
             return DiscordInteractionHandler._handle_rate_artist(
                 discord_user, interaction_data
             )
@@ -28,8 +31,9 @@ class DiscordInteractionHandler:
             current_app.logger.warn(f"Unknown command name: {command_name}")
             return jsonify({"type": InteractionCallbackType.PONG})
 
-    def _handle_echo(interaction_data):
-        to_echo = interaction_data["options"][0]["value"]
+    @staticmethod
+    def _handle_echo(interaction_data: dict):
+        to_echo: str = interaction_data["options"][0]["value"]
         return jsonify(
             {
                 "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -37,15 +41,16 @@ class DiscordInteractionHandler:
             }
         )
 
-    def _handle_rate_artist(discord_user, interaction_data):
-        artist_name = interaction_data["options"][0]["value"].strip()
+    @staticmethod
+    def _handle_rate_artist(discord_user: dict, interaction_data: dict):
+        artist_name: str = interaction_data["options"][0]["value"].strip()
         user = User.get_or_create_for_discord_user(discord_user)
 
         artists_for_user = user.get_artists()
         artist = Artist.get_or_create_artist(user=user, artist_name=artist_name)
         other_items = [a for a in artists_for_user if a.id != artist.id]
         rating_calculator = RatingCalculator.begin_rating(
-            item_being_rated=artist,
+            item_being_rated=cast(Rateable, artist),
             other_items=other_items,
         )
         next_comparison = rating_calculator.get_next_comparison()
@@ -66,9 +71,10 @@ class DiscordInteractionHandler:
             next_comparison.index,
         )
 
-    def handle_message_interaction(json_data):
-        discord_user = json_data["member"]["user"]
-        interaction_data = json_data["data"]
+    @staticmethod
+    def handle_message_interaction(json_data: dict):
+        discord_user: dict = json_data["member"]["user"]
+        interaction_data: dict = json_data["data"]
         (artist_id, comparison) = DiscordInteractionHandler._parse_custom_id(
             interaction_data["custom_id"]
         )
@@ -76,7 +82,7 @@ class DiscordInteractionHandler:
         user = User.get_by_username(discord_user["username"])
         artist = Artist.get_by_id_for_user(user=user, artist_id=artist_id)
         rating_calculator = RatingCalculator.continue_rating(
-            item_being_rated=artist,
+            item_being_rated=cast(Rateable, artist),
             comparison=comparison,
         )
         if rating_calculator is None:
@@ -98,7 +104,7 @@ class DiscordInteractionHandler:
             )
 
         new_rateables = rating_calculator.get_overall_ratings()
-        Artist.update_all_with_new_ratings(user=user, new_rateables=new_rateables)
+        Artist.update_all_with_new_ratings(user=user, new_rateables=cast(list[Artist], new_rateables))
         rating_calculator.complete()
         ratings_message = get_ratings_message(new_rateables)
         return jsonify(
@@ -110,13 +116,17 @@ class DiscordInteractionHandler:
             }
         )
 
-    def _parse_custom_id(custom_id):
+    @staticmethod
+    def _parse_custom_id(custom_id: str) -> tuple[int, Comparison]:
         matches = re.search(
             "a_([0-9]*)_c_([0-9]*)_cidx_([0-9]*)_pc_(no|yes)",
             custom_id,
         )
+        if matches is None:
+            raise Exception(f"Could not parse custom ID: {custom_id}")
+
         match_groups = matches.groups()
-        artist_id = match_groups[0]
+        artist_id = int(match_groups[0])
         compared_to_artist_id = match_groups[1]
         compared_artist_index = int(match_groups[2])
         is_preferred = match_groups[3] == "yes"

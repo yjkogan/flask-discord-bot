@@ -1,4 +1,5 @@
-from flask import Blueprint, request, current_app, jsonify
+from typing import Any
+from flask import Blueprint, request, current_app, jsonify, Response
 
 from ..discord.auth import DiscordAuth
 from ..discord import InteractionType, InteractionCallbackType
@@ -8,9 +9,9 @@ bp = Blueprint("interactions", __name__, url_prefix="/interactions")
 
 
 @bp.route("/", methods=("GET", "POST"))
-def discord_interactions():
-    content = request.json
-    interaction_type = int(content["type"])
+def discord_interactions() -> Response:
+    content: Any = request.json
+    interaction_type: int = int(content["type"])
     current_app.logger.info("Starting interaction")
 
     if interaction_type == InteractionType.PING:
