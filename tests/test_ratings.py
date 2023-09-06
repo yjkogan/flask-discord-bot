@@ -1,4 +1,4 @@
-from flaskr.ratings import RatingCalculator, Comparison, Rateable
+from flaskr.ratings.rating_calculator import RatingCalculator, Comparison, Rateable
 
 
 def test_get_next_comparison_empty(app):

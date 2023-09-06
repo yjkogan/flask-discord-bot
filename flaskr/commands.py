@@ -11,7 +11,6 @@ from flask import current_app
 
 class BotCommandNames(str, Enum):
     echo = "echo"
-    rate_artist = "rate_artist"
     rate = "rate"
 
 class RateSubCommandNames(str, Enum):
@@ -31,20 +30,6 @@ TEST_COMMAND = {
             "name": "statement",
             "required": True,
             "description": "What to echo back",
-        }
-    ],
-}
-
-RATE_ARTIST_COMMAND = {
-    "name": BotCommandNames.rate_artist.name,
-    "description": "Rate a musical artist",
-    "type": ApplicationCommandType.CHAT_INPUT.value,
-    "options": [
-        {
-            "type": ApplicationCommandOptionType.STRING.value,
-            "name": "song_artist",
-            "required": True,
-            "description": "The artist of the song",
         }
     ],
 }
@@ -103,7 +88,7 @@ RATE_COMMAND = {
     ],
 }
 
-ALL_COMMANDS = [TEST_COMMAND, RATE_ARTIST_COMMAND, RATE_COMMAND]
+ALL_COMMANDS = [TEST_COMMAND, RATE_COMMAND]
 
 
 def init_app(app):

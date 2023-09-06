@@ -1,7 +1,7 @@
 from typing import Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..ratings import RatingCalculator
+    from ..ratings.rating_calculator import RatingCalculator
 
 class InteractionCache:
     fake_redis: Dict[str, "RatingCalculator"] = {}
