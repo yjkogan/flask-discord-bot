@@ -11,7 +11,7 @@ from flask import current_app
 
 class BotCommandNames(str, Enum):
     echo = "echo"
-    rate = "rate"
+    rating = "rating"
 
 class RateSubCommandNames(str, Enum):
     add = "add"
@@ -35,14 +35,14 @@ TEST_COMMAND = {
 }
 
 ITEM_TYPE_OPTION = {
-    "name": "item_type",
+    "name": "type",
     "description": "The type of the item to rate",
     "required": True,
     "type": ApplicationCommandOptionType.STRING.value,
 }
 
 RATE_COMMAND = {
-    "name": BotCommandNames.rate.name,
+    "name": BotCommandNames.rating.name,
     "description": "Rate something and compare it against your other ratings",
     "type": ApplicationCommandType.CHAT_INPUT.value,
     "options": [
@@ -53,7 +53,7 @@ RATE_COMMAND = {
             "options": [
                 ITEM_TYPE_OPTION,
                 {
-                    "name": "item_name",
+                    "name": "name",
                     "description": "The name of the item to rate",
                     "required": True,
                     "type": ApplicationCommandOptionType.STRING.value,
@@ -67,7 +67,7 @@ RATE_COMMAND = {
             "options": [
                 ITEM_TYPE_OPTION,
                 {
-                    "name": "item_name",
+                    "name": "name",
                     "description": "The name of the item to remove",
                     "required": True,
                     "type": ApplicationCommandOptionType.STRING.value,

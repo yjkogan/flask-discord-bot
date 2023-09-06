@@ -13,7 +13,7 @@ class DiscordInteractionHandler:
         command_name: str = interaction_data["name"]
         if command_name == BotCommandNames.echo.name:
             return DiscordInteractionHandler._handle_echo(interaction_data)
-        elif command_name == BotCommandNames.rate.name:
+        elif command_name == BotCommandNames.rating.name:
             sub_command = interaction_data["options"][0]
             sub_command_name = sub_command["name"]
 

@@ -97,8 +97,8 @@ class RatingCalculator:
                 f"is_preferred: {comparison.is_preferred}, lowest: {lowest_possible_idx}, highest: {highest_possible_idx}, comparison: {idx_for_comparison}"
             )
 
-        current_app.logger.info(f"rating: {self.other_items[idx_for_comparison]}")
         next_item = self.other_items[idx_for_comparison]
+        current_app.logger.info(f"next item: {self.other_items[idx_for_comparison]}")
         return ComparisonToSend(
             id=next_item.id,
             name=next_item.name,

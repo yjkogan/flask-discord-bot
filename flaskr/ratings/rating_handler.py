@@ -118,7 +118,7 @@ class RatingHandler:
 
         next_comparison = rating_calculator.get_next_comparison()
         if next_comparison:
-            jsonify(
+            return jsonify(
                 RatingJsonResponder.get_comparison_json(
                     rating_calculator.item_being_rated,
                     next_comparison,
