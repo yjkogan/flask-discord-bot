@@ -5,14 +5,22 @@ from flask import jsonify
 from ..discord import InteractionCallbackType, MessageComponentType
 from ..models.user import User
 from ..models.rating import Rating
-from ..ratings.rating_calculator import RatingCalculator, CompletedComparison, ComparisonToSend
+from ..ratings.rating_calculator import (
+    RatingCalculator,
+    CompletedComparison,
+    ComparisonToSend,
+)
 
 
 class RatingHandler:
     @staticmethod
     def handle_add_rating(discord_user: dict, interaction_data: dict):
-        rating_type: str = interaction_data["options"][0]["value"].strip()
-        rating_name: str = interaction_data["options"][1]["value"].strip()
+        rating_type: str = RatingHandler._parse_rating_type(
+            interaction_data["options"][0]["value"]
+        )
+        rating_name: str = RatingHandler._parse_rating_name(
+            interaction_data["options"][1]["value"]
+        )
         user = User.get_or_create_for_discord_user(discord_user)
 
         ratings_for_user = user.get_ratings(rating_type=rating_type)
@@ -36,6 +44,51 @@ class RatingHandler:
                 next_comparison.index,
             )
         )
+
+    @staticmethod
+    def handle_remove_rating(discord_user: dict, interaction_data: dict):
+        rating_type: str = RatingHandler._parse_rating_type(
+            interaction_data["options"][0]["value"]
+        )
+        rating_name: str = RatingHandler._parse_rating_name(
+            interaction_data["options"][1]["value"]
+        )
+        user = User.get_or_create_for_discord_user(discord_user)
+
+        rating = Rating.get_by_name_for_user(
+            user=user, rating_name=rating_name, rating_type=rating_type
+        )
+        if rating is None:
+            return jsonify(
+                RatingJsonResponder.get_not_found_json(
+                    f"**{rating_name}** of type **{rating_type}**",
+                    discord_user["username"],
+                )
+            )
+
+        Rating.remove_rating_for_user(user=user, rating=rating)
+        return jsonify(RatingJsonResponder.get_removed_success_json(rating))
+
+    @staticmethod
+    def handle_list_ratings(discord_user: dict, interaction_data: dict):
+        rating_type: str = RatingHandler._parse_rating_type(
+            interaction_data["options"][0]["value"]
+        )
+        user = User.get_or_create_for_discord_user(discord_user)
+
+        ratings_for_user = user.get_ratings(rating_type=rating_type)
+        return jsonify(
+            RatingJsonResponder.get_ratings_list_json(
+                rating_type=rating_type, ratings=ratings_for_user
+            )
+        )
+
+    @staticmethod
+    def handle_list_types(discord_user: dict):
+        user = User.get_or_create_for_discord_user(discord_user)
+
+        rating_types = user.get_rating_types()
+        return jsonify(RatingJsonResponder.get_types_list_json(rating_types))
 
     @staticmethod
     def handle_responded_to_comparison(discord_user: dict, interaction_data: dict):
@@ -76,9 +129,7 @@ class RatingHandler:
         new_ratings = rating_calculator.get_overall_ratings()
         Rating.update_all_with_new_ratings(user=user, new_ratings=new_ratings)
         rating_calculator.complete()
-        return jsonify(
-            RatingJsonResponder.get_completed_ratings_json(rating, new_ratings)
-        )
+        return jsonify(RatingJsonResponder.get_ratings_list_json(rating.type, new_ratings))
 
     @staticmethod
     def _parse_custom_id(custom_id: str) -> tuple[int, CompletedComparison]:
@@ -103,6 +154,14 @@ class RatingHandler:
             ),
         )
 
+    @staticmethod
+    def _parse_rating_type(rating_type: str) -> str:
+        return rating_type.strip().lower()
+
+    @staticmethod
+    def _parse_rating_name(rating_name: str) -> str:
+        return rating_name.strip()
+
 
 class RatingJsonResponder:
     @staticmethod
@@ -112,7 +171,7 @@ class RatingJsonResponder:
         return {
             "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
             "data": {
-                "content": f"Which of these {rating.type}s do you prefer?",
+                "content": f"Which of these **{rating.type}s** do you prefer?",
                 "components": [
                     {
                         "type": MessageComponentType.ACTION_ROW,
@@ -136,16 +195,37 @@ class RatingJsonResponder:
         }
 
     @staticmethod
-    def get_completed_ratings_json(rating: Rating, ratings: list[Rating]):
+    def get_ratings_list_json(rating_type: str, ratings: list[Rating]):
+        if len(ratings) == 0:
+            return {
+                "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                "data": {"content": f"You have no ratings of **{rating_type}s**"},
+            }
         lines = []
         for r in ratings:
             lines.append(f"{r.name}: {r.value}")
         lines.reverse()
         ratings_message = "\n".join(lines)
-        {
+        return {
             "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
             "data": {
-                "content": f"Got it! Your new ratings for {rating.type} are:\n\n{ratings_message}"
+                "content": f"Your new ratings for **{rating_type}s** are:\n\n{ratings_message}"
+            },
+        }
+
+    @staticmethod
+    def get_types_list_json(rating_types: list[str]):
+        if len(rating_types) == 0:
+            return {
+                "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+                "data": {"content": "You haven't rated anything yet!"},
+            }
+
+        types_message = "\n".join(rating_types)
+        return {
+            "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+            "data": {
+                "content": f"You have ratings of the following types:\n\n{types_message}"
             },
         }
 
@@ -154,17 +234,22 @@ class RatingJsonResponder:
         return {
             "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
             "data": {
-                "content": f"Thanks for adding your first {rating_type}! Rate another {rating_type} to create a relative ranking."
+                "content": f"Thanks for adding your first **{rating_type}**! Rate another **{rating_type}** to create a relative ranking."
+            },
+        }
+
+    @staticmethod
+    def get_removed_success_json(rating: Rating):
+        return {
+            "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+            "data": {
+                "content": f"Removed **{rating.name}** from your **{rating.type}s** ratings"
             },
         }
 
     @staticmethod
     def get_not_found_json(identifier: str, username: str):
-        return jsonify(
-            {
-                "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
-                "data": {
-                    "content": f"Cannot find rating {identifier} for user {username}"
-                },
-            }
-        )
+        return {
+            "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+            "data": {"content": f"Cannot find rating {identifier} for user {username}"},
+        }

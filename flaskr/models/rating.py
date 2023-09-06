@@ -25,6 +25,11 @@ class Rating:
     def __str__(self):
         return f'{self.name}:{self.type} ({self.value})'
 
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, Rating):
+            return NotImplemented
+        return self.id == __value.id
+
     def update_value_property(self, new_value: float) -> Self:
         self.value = new_value
         return self
@@ -41,16 +46,28 @@ class Rating:
         return rating
 
     @classmethod
-    def get_ratings_for_user(cls, user: "User", rating_type: str):
+    def get_ratings_for_user(cls, user: "User"):
         ratings = (
             get_db()
             .execute(
-                "SELECT * FROM rating WHERE user_id = ? AND type = ? ORDER BY value ASC",
-                (user.id, rating_type),
+                "SELECT * FROM rating WHERE user_id = ? ORDER BY value ASC",
+                (user.id,),
             )
             .fetchall()
         )
         return [cls.create_from_db_row(rating) for rating in ratings]
+
+    @classmethod
+    def get_ratings_types_for_user(cls, user: "User") -> list[str]:
+        ratings = (
+            get_db()
+            .execute(
+                "SELECT DISTINCT type FROM rating WHERE user_id = ? ORDER BY type ASC",
+                (user.id,),
+            )
+            .fetchall()
+        )
+        return [rating["type"] for rating in ratings]
 
     @classmethod
     def create_rating(cls, user: "User", rating_name: str, rating_type: str, value: Optional[float] = None) -> Self:
@@ -85,7 +102,7 @@ class Rating:
         rating = (
             get_db()
             .execute(
-                "SELECT * FROM rating WHERE user_id = ? AND name = ? AND type = ? COLLATE NOCASE",
+                "SELECT * FROM rating WHERE user_id = ? AND name = ? COLLATE NOCASE AND type = ? COLLATE NOCASE",
                 (user.id, rating_name, rating_type),
             )
             .fetchone()
@@ -104,4 +121,13 @@ class Rating:
                 ' WHERE name = ? AND user_id = ? AND type = ?',
                 (rating.value, rating.name, user.id, rating.type)
             )
+        db.commit()
+
+    @classmethod
+    def remove_rating_for_user(cls, user: "User", rating: Self):
+        db = get_db()
+        db.execute(
+            "DELETE FROM rating WHERE user_id = ? AND id = ?",
+            (user.id, rating.id),
+        )
         db.commit()

@@ -59,5 +59,11 @@ class User:
         db.commit()
         return cls.get_by_username(username)
 
+    def get_rating_types(self) -> list[str]:
+        return Rating.get_ratings_types_for_user(self)
+
     def get_ratings(self, rating_type: str) -> list[Rating]:
-        return Rating.get_ratings_for_user(self, rating_type)
+        return [r for r in self.get_all_ratings() if r.type == rating_type]
+    
+    def get_all_ratings(self) -> list[Rating]:
+        return Rating.get_ratings_for_user(self)
