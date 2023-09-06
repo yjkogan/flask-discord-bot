@@ -17,13 +17,13 @@ class DiscordInteractionHandler:
             sub_command = interaction_data["options"][0]
             sub_command_name = sub_command["name"]
 
-            if sub_command_name == RateSubCommandNames.list_ratings.name:
+            if sub_command_name == RateSubCommandNames.list.name:
                 return RatingHandler.handle_list_ratings(discord_user=discord_user, interaction_data=sub_command)
-            elif sub_command_name == RateSubCommandNames.list_types.name:
+            elif sub_command_name == RateSubCommandNames.show_types.name:
                 return RatingHandler.handle_list_types(discord_user=discord_user)
-            elif sub_command_name == RateSubCommandNames.remove_rating.name:
+            elif sub_command_name == RateSubCommandNames.remove.name:
                 return RatingHandler.handle_remove_rating(discord_user=discord_user, interaction_data=sub_command)
-            elif sub_command_name == RateSubCommandNames.add_rating.name:
+            elif sub_command_name == RateSubCommandNames.add.name:
                 return RatingHandler.handle_add_rating(
                     discord_user=discord_user,
                     interaction_data=sub_command,

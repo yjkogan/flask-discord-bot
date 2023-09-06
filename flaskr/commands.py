@@ -14,10 +14,10 @@ class BotCommandNames(str, Enum):
     rate = "rate"
 
 class RateSubCommandNames(str, Enum):
-    add_rating = "add_rating"
-    remove_rating = "remove_rating"
-    list_ratings = "list_ratings"
-    list_types = "list_types"
+    add = "add"
+    remove = "remove"
+    list = "list"
+    show_types = "show_types"
 
 
 TEST_COMMAND = {
@@ -47,7 +47,7 @@ RATE_COMMAND = {
     "type": ApplicationCommandType.CHAT_INPUT.value,
     "options": [
         {
-            "name": RateSubCommandNames.add_rating.name,
+            "name": RateSubCommandNames.add.name,
             "description": "Add to your ratings",
             "type": ApplicationCommandOptionType.SUB_COMMAND.value,
             "options": [
@@ -61,7 +61,7 @@ RATE_COMMAND = {
             ],
         },
         {
-            "name": RateSubCommandNames.remove_rating.name,
+            "name": RateSubCommandNames.remove.name,
             "description": "Remove a rating",
             "type": ApplicationCommandOptionType.SUB_COMMAND.value,
             "options": [
@@ -75,13 +75,13 @@ RATE_COMMAND = {
             ],
         },
         {
-            "name": RateSubCommandNames.list_ratings.name,
+            "name": RateSubCommandNames.list.name,
             "description": "List your ratings",
             "type": ApplicationCommandOptionType.SUB_COMMAND.value,
             "options": [ITEM_TYPE_OPTION],
         },
         {
-            "name": RateSubCommandNames.list_types.name,
+            "name": RateSubCommandNames.show_types.name,
             "description": "List your rating types",
             "type": ApplicationCommandOptionType.SUB_COMMAND.value,
         },
