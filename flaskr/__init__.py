@@ -6,6 +6,7 @@ from .config.logging import configure_logger
 from . import db
 from . import commands
 from . import discord_interactions
+from . import web_api
 
 def create_app(test_config=None):
     configure_logger()
@@ -35,5 +36,6 @@ def create_app(test_config=None):
 
     # Register routes
     app.register_blueprint(discord_interactions.bp)
+    app.register_blueprint(web_api.bp)
 
     return app

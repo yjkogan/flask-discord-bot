@@ -209,7 +209,7 @@ class RatingJsonResponder:
         return {
             "type": InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
             "data": {
-                "content": f"Your new ratings for **{rating_type}s** are:\n\n{ratings_message}"
+                "content": f"Your ratings for **{rating_type}s** are:\n\n{ratings_message}"
             },
         }
 

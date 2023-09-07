@@ -25,6 +25,6 @@ def discord_interactions() -> Response:
         return jsonify({"type": InteractionCallbackType.PONG})
 
 
-@bp.before_app_request
+@bp.before_request
 def verify_bot_key():
     DiscordAuth.verify_discord_request(request=request)

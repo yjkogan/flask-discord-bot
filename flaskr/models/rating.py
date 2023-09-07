@@ -21,14 +21,23 @@ class Rating:
 
     def __repr__(self):
         return f"Rating(id={self.id}, type={self.type}, name={self.name}, value={self.value}, user_id={self.user_id})"
-    
+
     def __str__(self):
-        return f'{self.name}:{self.type} ({self.value})'
+        return f"{self.name}:{self.type} ({self.value})"
 
     def __eq__(self, __value: object) -> bool:
         if not isinstance(__value, Rating):
             return NotImplemented
         return self.id == __value.id
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "value": self.value,
+            "user_id": self.user_id,
+        }
 
     def update_value_property(self, new_value: float) -> Self:
         self.value = new_value
@@ -36,11 +45,21 @@ class Rating:
 
     @classmethod
     def create_from_db_row(cls, row: dict):
-        return cls(id=row["id"], type=row["type"], name=row["name"], value=row["value"], user_id=row["user_id"])
+        return cls(
+            id=row["id"],
+            type=row["type"],
+            name=row["name"],
+            value=row["value"],
+            user_id=row["user_id"],
+        )
 
     @classmethod
-    def get_or_create_rating(cls, user: "User", rating_name: str, rating_type: str) -> Self:
-        rating = cls.get_by_name_for_user(user=user, rating_name=rating_name, rating_type=rating_type)
+    def get_or_create_rating(
+        cls, user: "User", rating_name: str, rating_type: str
+    ) -> Self:
+        rating = cls.get_by_name_for_user(
+            user=user, rating_name=rating_name, rating_type=rating_type
+        )
         if rating is None:
             rating = cls.create_rating(user, rating_name, rating_type=rating_type)
         return rating
@@ -70,7 +89,13 @@ class Rating:
         return [rating["type"] for rating in ratings]
 
     @classmethod
-    def create_rating(cls, user: "User", rating_name: str, rating_type: str, value: Optional[float] = None) -> Self:
+    def create_rating(
+        cls,
+        user: "User",
+        rating_name: str,
+        rating_type: str,
+        value: Optional[float] = None,
+    ) -> Self:
         db = get_db()
         try:
             db.execute(
@@ -116,10 +141,10 @@ class Rating:
         db = get_db()
         for rating in new_ratings:
             db.execute(
-                'UPDATE rating'
-                ' SET value = ?'
-                ' WHERE name = ? AND user_id = ? AND type = ?',
-                (rating.value, rating.name, user.id, rating.type)
+                "UPDATE rating"
+                " SET value = ?"
+                " WHERE name = ? AND user_id = ? AND type = ?",
+                (rating.value, rating.name, user.id, rating.type),
             )
         db.commit()
 
