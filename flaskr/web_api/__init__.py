@@ -46,6 +46,7 @@ def create_rating() -> Response:
     next_comparison = rating_calculator.get_next_comparison()
     if next_comparison is None:
         rating_calculator.complete()
+        return jsonify({"rating": new_rating.to_json()})
     # End shareable part
     return jsonify({"rating": new_rating.to_json(), "next_comparison": next_comparison.to_json()})
 
@@ -107,7 +108,7 @@ def delete_rating() -> Response:
             jsonify({"error": f"Rating {rating_name} of type {rating_type} not found"}),
             404,
         )
-    rating.delete()
+    Rating.remove_rating_for_user(user, rating)
     return jsonify({"rating_id": rating.id})
 
 
