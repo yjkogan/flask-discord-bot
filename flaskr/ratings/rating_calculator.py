@@ -7,11 +7,13 @@ from ..models.rating import Rating
 
 MAX_COMPARISONS = 100000
 
+
 # TODO: Make this an abstract base class
 class _Comparison:
     def __init__(self, id: int, index: int):
         self.id = id
         self.index = index
+
 
 class ComparisonToSend(_Comparison):
     # Same constructor as the parent, but can also take a name that we can then send to the user
@@ -19,11 +21,20 @@ class ComparisonToSend(_Comparison):
         super().__init__(id, index)
         self.name = name
 
+    def to_json(self):
+        return {
+            "id": self.id,
+            "index": self.index,
+            "name": self.name,
+        }
+
+
 class CompletedComparison(_Comparison):
     # Same constructor as Comparison, but can also take is_preferred
     def __init__(self, id: int, index: int, is_preferred: bool):
         super().__init__(id, index)
         self.is_preferred = is_preferred
+
 
 class RatingCalculator:
     def __init__(self, item_being_rated: Rating, other_items: list[Rating]):
@@ -56,7 +67,9 @@ class RatingCalculator:
         return rating_calulator
 
     @classmethod
-    def continue_rating(cls, item_being_rated: Rating, comparison: CompletedComparison) -> Optional[Self]:
+    def continue_rating(
+        cls, item_being_rated: Rating, comparison: CompletedComparison
+    ) -> Optional[Self]:
         rating_calculator = RatingCalculator.find_for_item(item_being_rated)
         if rating_calculator is None:
             return None
