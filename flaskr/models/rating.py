@@ -1,5 +1,6 @@
 import sqlite3
-from typing import Optional, Self, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from .user import User

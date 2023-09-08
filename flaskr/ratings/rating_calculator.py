@@ -1,4 +1,6 @@
-from typing import Optional, Self
+from typing import Optional
+from typing_extensions import Self
+
 
 from flask import current_app
 
