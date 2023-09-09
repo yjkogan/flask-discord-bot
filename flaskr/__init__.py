@@ -30,6 +30,10 @@ def create_app(test_config=None):
     except OSError:
         pass
 
+    @app.route('/ping')
+    def ping():
+        return 'pong'
+
     # Initialize Stuff
     db.init_app(app)
     commands.init_app(app)
