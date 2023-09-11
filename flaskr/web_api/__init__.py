@@ -1,3 +1,4 @@
+from typing import Tuple, Union, cast
 from flask import Blueprint, request, current_app, jsonify, Response
 
 from ..models.rating import Rating
@@ -8,12 +9,12 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 @bp.route("/ratings", methods=["GET"])
-def get_ratings() -> Response:
+def get_ratings() -> Union[Response, Tuple[Response, int]]:
     username = request.args.get("username")
     rating_type = request.args.get("rating_type")
     current_app.logger.info(f"Getting ratings of type {rating_type} for {username}")
     # Begin shareable part
-    user = User.get_by_username(username=username)
+    user = User.get_by_username(username=cast(str, username))
     if user is None:
         return (jsonify({"error": f"User {username} not found"}), 404)
     ratings = user.get_ratings(rating_type=rating_type)
@@ -23,8 +24,8 @@ def get_ratings() -> Response:
 
 
 @bp.route("/ratings", methods=["POST"])
-def create_rating() -> Response:
-    content = request.json
+def create_rating() -> Union[Response, Tuple[Response, int]]:
+    content: dict = cast(dict, request.json)
     username = content["username"]
     rating_type = content["rating_type"]
     rating_name = content["rating_name"]
@@ -51,8 +52,8 @@ def create_rating() -> Response:
     return jsonify({"rating": new_rating.to_json(), "next_comparison": next_comparison.to_json()})
 
 @bp.route("/ratings/compare", methods=["PUT"])
-def create_comparison() -> Response:
-    content = request.json
+def create_comparison() -> Union[Response, Tuple[Response, int]]:
+    content: dict = cast(dict, request.json)
     username = content["username"]
     rating_id = content["rating_id"]
     comparison_id = content["comparison"]["id"]
@@ -75,6 +76,8 @@ def create_comparison() -> Response:
         item_being_rated=rating,
         comparison=comparison,
     )
+    if rating_calculator is None:
+        return (jsonify({"error": f"No ongoing rating found for {rating.name}"}), 404)
     next_comparison = rating_calculator.get_next_comparison()
     if next_comparison:
         return jsonify({"next_comparison": next_comparison.to_json()})
@@ -86,8 +89,8 @@ def create_comparison() -> Response:
     return jsonify({"new_ratings": [r.to_json() for r in new_ratings]})
 
 @bp.route("/ratings", methods=["DELETE"])
-def delete_rating() -> Response:
-    content = request.json
+def delete_rating() -> Union[Response, Tuple[Response, int]]:
+    content: dict = cast(dict, request.json)
     username = content["username"]
     rating_type = content["rating_type"]
     rating_name = content["rating_name"]
@@ -113,10 +116,10 @@ def delete_rating() -> Response:
 
 
 @bp.route("/rating_types", methods=["GET"])
-def ratings_types() -> Response:
+def ratings_types() -> Union[Response, Tuple[Response, int]]:
     username = request.args.get("username")
     current_app.logger.info(f"Getting rating types for {username}")
-    user = User.get_by_username(username=username)
+    user = User.get_by_username(username=cast(str, username))
     if user is None:
         return (jsonify({"error": f"User {username} not found"}), 404)
     rating_types = user.get_rating_types()
