@@ -27,10 +27,13 @@ class User:
     @classmethod
     def get_by_id(cls, user_id: int):
         db = get_db()
-        user: dict = db.execute(
-            "SELECT u.id, u.username FROM user u WHERE u.id = ?",
-            (user_id,),
-        ).fetchone()
+        user = None
+        with db.cursor() as cursor:
+            cursor.execute(
+                "SELECT u.id, u.username FROM hearrd_user u WHERE u.id = %s",
+                (user_id,),
+            )
+            user = cursor.fetchone()
         if user is None:
             return None
 
@@ -39,10 +42,13 @@ class User:
     @classmethod
     def get_by_username(cls, username: str):
         db = get_db()
-        user = db.execute(
-            "SELECT u.id, u.username FROM user u WHERE u.username = ?",
-            (username,),
-        ).fetchone()
+        user = None
+        with db.cursor() as cursor:
+            cursor.execute(
+                "SELECT u.id, u.username FROM hearrd_user u WHERE u.username = %s",
+                (username,),
+            )
+            user = cursor.fetchone()
         if user is None:
             return None
 
@@ -51,11 +57,12 @@ class User:
     @classmethod
     def create_user(cls, username: str):
         db = get_db()
-        current_app.logger.info(f"Creating user {username}")
-        db.execute(
-            "INSERT INTO user (username) VALUES (?)",
-            (username,),
-        )
+        with db.cursor() as cursor:
+            current_app.logger.info(f"Creating user {username}")
+            cursor.execute(
+                "INSERT INTO hearrd_user (username) VALUES (%s)",
+                (username,),
+            )
         db.commit()
         return cls.get_by_username(username)
 

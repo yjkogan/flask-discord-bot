@@ -67,26 +67,24 @@ class Rating:
 
     @classmethod
     def get_ratings_for_user(cls, user: "User"):
-        ratings = (
-            get_db()
-            .execute(
-                "SELECT * FROM rating WHERE user_id = ? ORDER BY value ASC",
+        ratings = []
+        with get_db().cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM rating WHERE user_id = %s ORDER BY value ASC",
                 (user.id,),
             )
-            .fetchall()
-        )
+            ratings = cursor.fetchall()
         return [cls.create_from_db_row(rating) for rating in ratings]
 
     @classmethod
     def get_ratings_types_for_user(cls, user: "User") -> list[str]:
-        ratings = (
-            get_db()
-            .execute(
-                "SELECT DISTINCT type FROM rating WHERE user_id = ? ORDER BY type ASC",
+        ratings = []
+        with get_db().cursor() as cursor:
+            cursor.execute(
+                "SELECT DISTINCT type FROM rating WHERE user_id = %s ORDER BY type ASC",
                 (user.id,),
             )
-            .fetchall()
-        )
+            ratings = cursor.fetchall()
         return [rating["type"] for rating in ratings]
 
     @classmethod
@@ -98,41 +96,37 @@ class Rating:
         value: Optional[float] = None,
     ) -> Self:
         db = get_db()
-        try:
-            db.execute(
-                "INSERT INTO rating (user_id, name, type, value) VALUES (?, ?, ?, ?)",
+        with db.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO rating (user_id, name, type, value) VALUES (%s, %s, %s, %s)",
                 (user.id, rating_name, rating_type, value),
             )
-            db.commit()
-            return cls.get_by_name_for_user(user, rating_name, rating_type)
-
-        except sqlite3.IntegrityError as e:
-            raise RatingExistsException(e)
+        db.commit()
+        return cls.get_by_name_for_user(user, rating_name, rating_type)
 
     @classmethod
     def get_by_id_for_user(cls, user: "User", rating_id: int):
-        rating = (
-            get_db()
-            .execute(
-                "SELECT * FROM rating WHERE user_id = ? AND id = ?",
+        rating = None
+        with get_db().cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM rating WHERE user_id = %s AND id = %s",
                 (user.id, rating_id),
             )
-            .fetchone()
-        )
+            rating = cursor.fetchone()
         if rating is None:
             return None
         return cls.create_from_db_row(rating)
 
     @classmethod
     def get_by_name_for_user(cls, user: "User", rating_name: str, rating_type: str):
-        rating = (
-            get_db()
-            .execute(
-                "SELECT * FROM rating WHERE user_id = ? AND name = ? COLLATE NOCASE AND type = ? COLLATE NOCASE",
+        rating = None
+        with get_db().cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM rating WHERE user_id = %s AND LOWER(name) = LOWER(%s) AND LOWER(type) = LOWER(%s)",
                 (user.id, rating_name, rating_type),
             )
-            .fetchone()
-        )
+            rating = cursor.fetchone()
+
         if rating is None:
             return None
         return cls.create_from_db_row(rating)
@@ -140,20 +134,22 @@ class Rating:
     @classmethod
     def update_all_with_new_ratings(cls, user: "User", new_ratings: list[Self]):
         db = get_db()
-        for rating in new_ratings:
-            db.execute(
-                "UPDATE rating"
-                " SET value = ?"
-                " WHERE name = ? AND user_id = ? AND type = ?",
-                (rating.value, rating.name, user.id, rating.type),
-            )
+        with db.cursor() as cursor:
+            for rating in new_ratings:
+                cursor.execute(
+                    "UPDATE rating"
+                    " SET value = %s"
+                    " WHERE name = %s AND user_id = %s AND type = %s",
+                    (rating.value, rating.name, user.id, rating.type),
+                )
         db.commit()
 
     @classmethod
     def remove_rating_for_user(cls, user: "User", rating: Self):
         db = get_db()
-        db.execute(
-            "DELETE FROM rating WHERE user_id = ? AND id = ?",
-            (user.id, rating.id),
-        )
+        with db.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM rating WHERE user_id = %s AND id = %s",
+                (user.id, rating.id),
+            )
         db.commit()
