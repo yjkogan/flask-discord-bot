@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, request, redirect
+from flask import Flask
 from .config.logging import configure_logger
 
 from . import db
@@ -29,16 +29,6 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
-
-    @app.before_request
-    def require_https():
-        is_ping = request.path == '/ping'
-        request_can_proceed = is_ping or request.is_secure or app.config.get('ALLOW_HTTP', False)
-        if not request_can_proceed:
-            url = request.url.replace('http://', 'https://', 1)
-            code = 301
-            return redirect(url, code=code)
-
 
     @app.route('/ping')
     def ping():
