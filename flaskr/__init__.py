@@ -32,7 +32,9 @@ def create_app(test_config=None):
 
     @app.before_request
     def require_https():
-        if not request.is_secure and not app.config.get('ALLOW_HTTP', False):
+        is_ping = request.path == '/ping'
+        request_can_proceed = is_ping or request.is_secure or app.config.get('ALLOW_HTTP', False)
+        if not request_can_proceed:
             url = request.url.replace('http://', 'https://', 1)
             code = 301
             return redirect(url, code=code)
